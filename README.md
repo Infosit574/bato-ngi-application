@@ -26,5 +26,5 @@ AGPL v3 for software, CC BY-SA 4.0 for documentation.
 
 **Contact**
 Infosit d.o.o.  
-Email: goran.mrvos@infosit.com
+Email: info@infosit.com
 Location: Poreč, Croatia
