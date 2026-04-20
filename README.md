@@ -22,7 +22,7 @@ AGPL v3 for software, CC BY-SA 4.0 for documentation.
 
 **Links**
 - Website: [https://bato.infosit.hr](https://bato.infosit.hr) *(to be created upon approval)*
-- GitHub: [https://github.com/infosit/bato](https://github.com/infosit/bato) *(private until approval)*
+- GitHub: [https://github.com/infosit/bato](https://github.com/infosit574/bato) *(private until approval)*
 
 **Contact**
 Infosit d.o.o.  
