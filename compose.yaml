@@ -1,0 +1,40 @@
+services:
+  db:
+    image: pgvector/pgvector:0.8.2-pg16-bookworm@sha256:00ba258a66dac104fd5171074a0084462a64a1369d8513f3d0a634e2f24d15bc
+    environment:
+      POSTGRES_DB: bato
+      POSTGRES_USER: bato
+      POSTGRES_PASSWORD: bato-development-only
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./deploy/initdb/001-vector.sql:/docker-entrypoint-initdb.d/001-vector.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bato -d bato"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+    restart: unless-stopped
+  api:
+    build: .
+    environment:
+      BATO_DATABASE_URL: postgresql://bato:bato-development-only@db:5432/bato
+    ports:
+      - "127.0.0.1:${BATO_API_PORT:-8000}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=5)"
+      interval: 5s
+      timeout: 6s
+      retries: 12
+      start_period: 5s
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
