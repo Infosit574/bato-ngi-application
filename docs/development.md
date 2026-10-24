@@ -31,6 +31,12 @@ The three `BATO_MCP_*_ENABLED` switches in `.env.example` default to `true`.
 Set unused extensions to `false` in `.env` or the shell before deployment.
 See [MCP startup switches](mcp-stubs.md#startup-extension-switches) for accepted
 values, standalone client configuration, and container recreation requirements.
+`BATO_LOG_LEVEL` sets the API process log level at startup, including Uvicorn
+error and access logs. Accepted values are `DEBUG`, `INFO`, `WARNING`, and `ERROR`
+(uppercase). The default is `INFO`; invalid values fall back to `INFO` with a warning.
+Set it in `.env` or the shell before deployment, then recreate the API container
+with `docker compose up -d --force-recreate api`. For local Python execution, set
+it in the process environment before starting the API; later changes have no effect.
 For local Python execution, `BATO_DATABASE_URL` is a libpq-compatible connection
 string supplied by the operator; no application-side default is assumed.
 

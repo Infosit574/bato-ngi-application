@@ -76,6 +76,58 @@ async def test_readiness_requires_vector(monkeypatch, client, vector_enabled, ex
     assert response.json()["database"] == ("ready" if vector_enabled else "vector_missing")
 
 
+@pytest.mark.parametrize(
+    "value,expected",
+    [
+        (None, "INFO"),
+        ("DEBUG", "DEBUG"),
+        ("INFO", "INFO"),
+        ("WARNING", "WARNING"),
+        ("ERROR", "ERROR"),
+        ("TRACE", "INFO"),
+        ("info", "INFO"),
+        ("", "INFO"),
+    ],
+)
+def test_log_level_uses_startup_configuration(value, expected):
+    environment = os.environ.copy()
+    environment.pop("BATO_LOG_LEVEL", None)
+    if value is not None:
+        environment["BATO_LOG_LEVEL"] = value
+    probe = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            """
+import importlib
+import json
+import logging
+import os
+import uvicorn
+
+logging.basicConfig(level=logging.ERROR)
+config = uvicorn.Config("bato.api.app:app")
+config.load()
+os.environ["BATO_LOG_LEVEL"] = "ERROR"
+importlib.import_module("bato.api.app")
+print(json.dumps([
+    logging.getLevelName(logging.getLogger(name).getEffectiveLevel())
+    for name in ("", "bato.api.app", "uvicorn", "uvicorn.error", "uvicorn.access", "uvicorn.asgi")
+]))
+""",
+        ],
+        env=environment,
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
+    assert json.loads(probe.stdout) == [expected] * 6
+    invalid = value not in {None, "DEBUG", "INFO", "WARNING", "ERROR"}
+    warning = "WARNING:bato.api.app:Invalid BATO_LOG_LEVEL; falling back to INFO."
+    assert probe.stderr.count(warning) == int(invalid)
+
+
 @pytest.mark.parametrize("switches", [None, *itertools.product(("true", "false"), repeat=3)])
 def test_extension_status_uses_startup_configuration(switches):
     environment = os.environ.copy()
