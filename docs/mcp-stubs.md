@@ -25,7 +25,46 @@ After building the image, a client can instead launch a container over stdio:
 docker compose run --rm --no-deps -T api bato-mcp nextcloud
 ```
 
-All valid tool calls return an MCP tool result with `isError: true` and a JSON
+## Startup extension switches
+
+The installation-wide switches are `BATO_MCP_NEXTCLOUD_ENABLED`,
+`BATO_MCP_ROCKETCHAT_ENABLED`, and `BATO_MCP_EMAIL_ENABLED`. Each accepts only
+the exact lowercase strings `true` and `false`. Unset switches default to `true`.
+Empty values, uppercase values, numbers, and all other strings fail startup with
+an error on stderr; no MCP protocol output is written to stdout.
+All three switches are validated at process startup, even for a single connector.
+
+Copy `.env.example` to `.env` and set unused extensions to `false` before starting
+Compose. Compose passes the same switches to the API and one-off stdio containers;
+exported shell variables take precedence over `.env`. For example:
+
+```sh
+BATO_MCP_NEXTCLOUD_ENABLED=false docker compose up --build --wait
+BATO_MCP_NEXTCLOUD_ENABLED=false docker compose run --rm --no-deps -T api bato-mcp nextcloud
+```
+
+The second command exits with an error on stderr before starting the protocol.
+Disabled extensions remain packaged, but their tools are not exposed or run.
+`/status` lists them as `disabled` with an empty `tools` list; enabled extensions
+remain `stub`. A directly constructed disabled server lists no tools and returns
+`extension_disabled` for every tool call. Health checks depend on the core API
+and database, not on enabled extensions or external providers.
+
+Standalone Python commands do not load `.env`. Set these variables in the MCP
+client's server-process environment, or export them in the launching shell.
+Every API and MCP process reads its own startup environment once; there is no
+runtime setting, database setting, or configuration-file loader. For consistent
+installation-wide behavior, supply the same switches to every process.
+
+After changing `.env` or exported variables, recreate the API with
+`docker compose up -d --force-recreate api` and restart each MCP client/server
+process (or launch a new Compose one-off container). `docker compose restart`
+retains the old container environment and does not apply changed switches.
+No database migration or network access is needed to select extensions.
+
+## Enabled stub behavior
+
+All valid enabled tool calls return an MCP tool result with `isError: true` and a JSON
 text payload whose code is `not_implemented`. Bad arguments return
 `invalid_arguments`; unknown tool names return `unknown_tool`.
 No call returns invented documents, messages, summaries, drafts, or an empty

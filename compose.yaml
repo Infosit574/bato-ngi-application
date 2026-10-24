@@ -19,6 +19,9 @@ services:
     build: .
     environment:
       BATO_DATABASE_URL: postgresql://bato:bato-development-only@db:5432/bato
+      BATO_MCP_NEXTCLOUD_ENABLED: "${BATO_MCP_NEXTCLOUD_ENABLED-true}"
+      BATO_MCP_ROCKETCHAT_ENABLED: "${BATO_MCP_ROCKETCHAT_ENABLED-true}"
+      BATO_MCP_EMAIL_ENABLED: "${BATO_MCP_EMAIL_ENABLED-true}"
     ports:
       - "127.0.0.1:${BATO_API_PORT:-8000}:8000"
     depends_on:

@@ -27,6 +27,10 @@ offline installation package. No cloud provider is called by the application.
 The API is published at `127.0.0.1:8000`; the database is reachable only on the
 Compose network. Set `BATO_API_PORT=8080` in the shell or an optional `.env`
 to use another host port. `.env.example` lists this setting; it is not required.
+The three `BATO_MCP_*_ENABLED` switches in `.env.example` default to `true`.
+Set unused extensions to `false` in `.env` or the shell before deployment.
+See [MCP startup switches](mcp-stubs.md#startup-extension-switches) for accepted
+values, standalone client configuration, and container recreation requirements.
 For local Python execution, `BATO_DATABASE_URL` is a libpq-compatible connection
 string supplied by the operator; no application-side default is assumed.
 
@@ -99,6 +103,9 @@ and temporarily removes the vector extension. It verifies readiness failure and
 recovery, an actual vector operation, loopback publication, and a marker surviving
 restart and named-volume reuse. It creates a `deployment_probe` table in that
 development database. Do not run it against real data.
+It also checks all extension-switch combinations in Compose configuration,
+`.env` propagation to the API and one-off MCP containers, disabled CLI rejection,
+and the difference between restarting and recreating a configured container.
 
 CI runs the same code checks and deployment lifecycle on Linux. macOS, Windows,
 ARM hardware, OVA images, and production operation have not been validated.
