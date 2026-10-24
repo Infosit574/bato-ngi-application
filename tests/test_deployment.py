@@ -1,13 +1,19 @@
+import asyncio
+import itertools
 import json
 import os
 import subprocess
 import time
 import urllib.error
 import urllib.request
+from datetime import timedelta
 from pathlib import Path
 from uuid import uuid4
 
 import pytest
+from mcp import ClientSession, StdioServerParameters
+from mcp.client.stdio import stdio_client
+from mcp.types import TextContent
 
 pytestmark = pytest.mark.deployment
 ROOT = Path(__file__).resolve().parents[1]
@@ -89,3 +95,105 @@ def test_compose_readiness_persistence_and_recovery():
         sql("CREATE EXTENSION vector")
     await_ready()
     sql(f"DELETE FROM deployment_probe WHERE id = '{marker}'")
+
+
+@pytest.mark.parametrize(
+    "switches", [None, *itertools.product(("true", "false"), repeat=3), ("", "", "")]
+)
+def test_compose_extension_environment(monkeypatch, switches):
+    variables = [f"BATO_MCP_{name}_ENABLED" for name in ("NEXTCLOUD", "ROCKETCHAT", "EMAIL")]
+    for index, variable in enumerate(variables):
+        monkeypatch.delenv(variable, raising=False)
+        if switches is not None:
+            monkeypatch.setenv(variable, switches[index])
+    configuration = json.loads(compose("--env-file", "/dev/null", "config", "--format", "json"))
+    environment = configuration["services"]["api"]["environment"]
+    assert [environment[variable] for variable in variables] == (
+        list(switches) if switches is not None else ["true"] * 3
+    )
+
+
+def test_compose_extension_switches_and_recreation(monkeypatch, tmp_path):
+    for name in ("NEXTCLOUD", "ROCKETCHAT", "EMAIL"):
+        monkeypatch.delenv(f"BATO_MCP_{name}_ENABLED", raising=False)
+    env_file = tmp_path / "extensions.env"
+    env_file.write_text(
+        "BATO_MCP_NEXTCLOUD_ENABLED=false\n"
+        "BATO_MCP_ROCKETCHAT_ENABLED=true\n"
+        "BATO_MCP_EMAIL_ENABLED=false\n"
+    )
+    prefix = ("--env-file", str(env_file))
+    compose(*prefix, "up", "-d", "--force-recreate", "--wait", "api")
+    await_ready()
+    status = get("/status")[1]["connectors"]
+    assert [connector["status"] for connector in status] == ["disabled", "stub", "disabled"]
+    assert status[0]["tools"] == status[2]["tools"] == []
+    for name in ("nextcloud", "email"):
+        result = subprocess.run(
+            [
+                "docker",
+                "compose",
+                *prefix,
+                "run",
+                "--rm",
+                "--no-deps",
+                "-T",
+                "api",
+                "bato-mcp",
+                name,
+            ],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        assert result.returncode == 2
+        assert result.stdout == ""
+        assert f"The {name} extension is disabled." in result.stderr
+
+    async def exercise_stdio():
+        params = StdioServerParameters(
+            command="docker",
+            args=[
+                "compose",
+                *prefix,
+                "run",
+                "--rm",
+                "--no-deps",
+                "-T",
+                "api",
+                "bato-mcp",
+                "rocketchat",
+            ],
+            cwd=str(ROOT),
+            env={
+                variable: os.environ[variable]
+                for variable in ("COMPOSE_PROJECT_NAME", "BATO_API_PORT")
+                if variable in os.environ
+            },
+        )
+        async with stdio_client(params) as (read, write):
+            async with ClientSession(
+                read, write, read_timeout_seconds=timedelta(seconds=30)
+            ) as client:
+                await client.initialize()
+                assert {tool.name for tool in (await client.list_tools()).tools} == set(
+                    status[1]["tools"]
+                )
+                result = await client.call_tool("rc_search", {"query": "budget"})
+                assert result.isError is True
+                assert isinstance(result.content[0], TextContent)
+                assert json.loads(result.content[0].text)["code"] == "not_implemented"
+
+    asyncio.run(exercise_stdio())
+    env_file.write_text(
+        "BATO_MCP_NEXTCLOUD_ENABLED=true\n"
+        "BATO_MCP_ROCKETCHAT_ENABLED=true\n"
+        "BATO_MCP_EMAIL_ENABLED=true\n"
+    )
+    compose(*prefix, "restart", "api")
+    await_ready()
+    assert get("/status")[1]["connectors"] == status
+    compose(*prefix, "up", "-d", "--force-recreate", "--wait", "api")
+    await_ready()
+    assert all(connector["status"] == "stub" for connector in get("/status")[1]["connectors"])
