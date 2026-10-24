@@ -1,7 +1,10 @@
 import asyncio
 import json
+import os
+import subprocess
 import sys
 from datetime import timedelta
+from pathlib import Path
 
 import pytest
 from mcp import ClientSession, StdioServerParameters
@@ -39,11 +42,22 @@ def result_code(result):
 
 
 @pytest.mark.parametrize("connector", CONNECTORS, ids=lambda connector: connector.name)
-def test_stdio_discovery_and_fail_closed_calls(connector):
+@pytest.mark.parametrize("only_selected", [False, True], ids=["defaults", "only-selected"])
+def test_stdio_discovery_and_fail_closed_calls(connector, only_selected):
     async def exercise():
         params = StdioServerParameters(
             command=sys.executable,
             args=["-m", "bato.mcp.server", connector.name],
+            env=(
+                {
+                    f"BATO_MCP_{item.name.upper()}_ENABLED": (
+                        "true" if item == connector else "false"
+                    )
+                    for item in CONNECTORS
+                }
+                if only_selected
+                else {}
+            ),
         )
         async with stdio_client(params) as (read, write):
             async with ClientSession(
@@ -92,6 +106,82 @@ def test_stdio_discovery_and_fail_closed_calls(connector):
                 )
 
     asyncio.run(exercise())
+
+
+@pytest.mark.parametrize("connector", CONNECTORS, ids=lambda connector: connector.name)
+def test_disabled_direct_server_discovery_and_dispatch(connector):
+    async def exercise():
+        params = StdioServerParameters(
+            command=sys.executable,
+            args=[
+                "-c",
+                f"""
+import asyncio
+import os
+from bato.mcp.registry import CONNECTORS
+from bato.mcp.server import serve
+
+os.environ["BATO_MCP_{connector.name.upper()}_ENABLED"] = "true"
+asyncio.run(serve(next(item for item in CONNECTORS if item.name == "{connector.name}")))
+""",
+            ],
+            env={f"BATO_MCP_{connector.name.upper()}_ENABLED": "false"},
+        )
+        async with stdio_client(params) as (read, write):
+            async with ClientSession(
+                read, write, read_timeout_seconds=timedelta(seconds=10)
+            ) as client:
+                await client.initialize()
+                assert (await client.list_tools()).tools == []
+                for tool in connector.tools:
+                    assert (
+                        result_code(await client.call_tool(tool.name, VALID_ARGUMENTS[tool.name]))
+                        == "extension_disabled"
+                    )
+                assert result_code(await client.call_tool("missing_tool", {})) == (
+                    "extension_disabled"
+                )
+
+    asyncio.run(exercise())
+
+
+@pytest.mark.parametrize("connector", CONNECTORS, ids=lambda connector: connector.name)
+def test_disabled_cli_fails_before_protocol_start(connector):
+    environment = os.environ.copy()
+    environment[f"BATO_MCP_{connector.name.upper()}_ENABLED"] = "false"
+    result = subprocess.run(
+        [str(Path(sys.executable).with_name("bato-mcp")), connector.name],
+        env=environment,
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
+    assert result.returncode == 2
+    assert result.stdout == ""
+    assert f"The {connector.name} extension is disabled." in result.stderr
+
+
+@pytest.mark.parametrize("connector", CONNECTORS, ids=lambda connector: connector.name)
+@pytest.mark.parametrize("value", ["", "TRUE", "1", " false "])
+@pytest.mark.parametrize(
+    "arguments",
+    [("-m", "bato.mcp.server", "nextcloud"), ("-c", "import bato.api.app")],
+    ids=["mcp", "api"],
+)
+def test_invalid_extension_configuration_fails_startup(connector, value, arguments):
+    environment = os.environ.copy()
+    variable = f"BATO_MCP_{connector.name.upper()}_ENABLED"
+    environment[variable] = value
+    result = subprocess.run(
+        [sys.executable, *arguments],
+        env=environment,
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
+    assert result.returncode != 0
+    assert result.stdout == ""
+    assert f"{variable} must be 'true' or 'false' (lowercase)." in result.stderr
 
 
 def test_nextcloud_date_range_and_confirmation_schema():

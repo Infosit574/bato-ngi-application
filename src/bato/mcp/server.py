@@ -9,7 +9,7 @@ from mcp.types import CallToolResult, TextContent, Tool
 from pydantic import ValidationError
 
 from bato.mcp.contract import Connector
-from bato.mcp.registry import CONNECTORS
+from bato.mcp.registry import CONNECTORS, ENABLED_CONNECTORS
 
 
 def error_result(code: str, message: str) -> CallToolResult:
@@ -21,14 +21,19 @@ def error_result(code: str, message: str) -> CallToolResult:
 
 def create_server(connector: Connector) -> Server[Any, Any]:
     server: Server[Any, Any] = Server(f"bato-{connector.name}-stub", version="0.1.0")
-    tools = {tool.name: tool for tool in connector.tools}
+    enabled = connector in ENABLED_CONNECTORS
+    tools = {tool.name: tool for tool in connector.tools} if enabled else {}
 
     @server.list_tools()
     async def list_tools() -> list[Tool]:
-        return [tool.as_mcp_tool() for tool in connector.tools]
+        return [tool.as_mcp_tool() for tool in tools.values()]
 
     @server.call_tool(validate_input=False)
     async def call_tool(name: str, arguments: dict[str, Any]) -> CallToolResult:
+        if not enabled:
+            return error_result(
+                "extension_disabled", f"The {connector.name} extension is disabled."
+            )
         tool = tools.get(name)
         if tool is None:
             return error_result("unknown_tool", "This connector does not provide that tool.")
@@ -59,11 +64,13 @@ async def serve(connector: Connector) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="BATO stdio MCP stubs; no integrations are enabled."
+        description="BATO stdio MCP stubs; no external services are contacted."
     )
     parser.add_argument("connector", choices=[connector.name for connector in CONNECTORS])
     args = parser.parse_args()
     connector = next(connector for connector in CONNECTORS if connector.name == args.connector)
+    if connector not in ENABLED_CONNECTORS:
+        parser.error(f"The {connector.name} extension is disabled.")
     asyncio.run(serve(connector))
 
 

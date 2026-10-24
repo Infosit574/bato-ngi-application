@@ -1,3 +1,8 @@
+import itertools
+import json
+import os
+import subprocess
+import sys
 from unittest.mock import AsyncMock, patch
 
 import httpx
@@ -5,6 +10,7 @@ import psycopg
 import pytest
 
 from bato.api.app import app
+from bato.mcp.registry import CONNECTORS
 
 pytestmark = pytest.mark.anyio
 
@@ -68,3 +74,63 @@ async def test_readiness_requires_vector(monkeypatch, client, vector_enabled, ex
         response = await client.get("/health/ready")
     assert response.status_code == expected_status
     assert response.json()["database"] == ("ready" if vector_enabled else "vector_missing")
+
+
+@pytest.mark.parametrize("switches", [None, *itertools.product(("true", "false"), repeat=3)])
+def test_extension_status_uses_startup_configuration(switches):
+    environment = os.environ.copy()
+    environment.pop("BATO_DATABASE_URL", None)
+    for index, connector in enumerate(CONNECTORS):
+        variable = f"BATO_MCP_{connector.name.upper()}_ENABLED"
+        environment.pop(variable, None)
+        if switches is not None:
+            environment[variable] = switches[index]
+    probe = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            """
+import asyncio
+import json
+import os
+import httpx
+from bato.api.app import app
+
+async def inspect():
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        status = (await client.get("/status")).json()
+        for name in ("NEXTCLOUD", "ROCKETCHAT", "EMAIL"):
+            variable = f"BATO_MCP_{name}_ENABLED"
+            os.environ[variable] = "false" if os.environ.get(variable, "true") == "true" else "true"
+        return {
+            "status": status,
+            "after": (await client.get("/status")).json(),
+            "live": (await client.get("/health/live")).json(),
+            "ready": (await client.get("/health/ready")).json(),
+        }
+
+print(json.dumps(asyncio.run(inspect())))
+""",
+        ],
+        env=environment,
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
+    observed = json.loads(probe.stdout)
+    assert observed["after"] == observed["status"]
+    assert observed["live"] == {"status": "alive"}
+    assert observed["ready"] == {"status": "not_ready", "database": "unconfigured"}
+    for index, (connector, status) in enumerate(
+        zip(CONNECTORS, observed["status"]["connectors"], strict=True)
+    ):
+        enabled = switches is None or switches[index] == "true"
+        assert status == {
+            "name": connector.name,
+            "status": "stub" if enabled else "disabled",
+            "transport": "stdio",
+            "tools": [tool.name for tool in connector.tools] if enabled else [],
+        }

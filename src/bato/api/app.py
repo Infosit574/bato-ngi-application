@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
 from bato.core.capabilities import DEFERRED_CAPABILITIES
-from bato.mcp.registry import CONNECTORS
+from bato.mcp.registry import CONNECTORS, ENABLED_CONNECTORS
 
 app = FastAPI(
     title="BATO skeleton",
@@ -51,9 +51,13 @@ async def status() -> dict[str, object]:
         "connectors": [
             {
                 "name": connector.name,
-                "status": "stub",
+                "status": "stub" if connector in ENABLED_CONNECTORS else "disabled",
                 "transport": "stdio",
-                "tools": [tool.name for tool in connector.tools],
+                "tools": (
+                    [tool.name for tool in connector.tools]
+                    if connector in ENABLED_CONNECTORS
+                    else []
+                ),
             }
             for connector in CONNECTORS
         ],
