@@ -41,7 +41,19 @@ def _configure_logging() -> None:
     if invalid:
         logging.getLogger(__name__).warning("Invalid BATO_LOG_LEVEL; falling back to INFO.")
     if invalid_format:
-        logging.getLogger(__name__).warning("Invalid BATO_LOG_FORMAT; falling back to text.")
+        logger = logging.getLogger(__name__)
+        # Configuration warnings must remain visible even when runtime logs require ERROR.
+        logger.handle(
+            logger.makeRecord(
+                __name__,
+                logging.WARNING,
+                __file__,
+                0,
+                "Invalid BATO_LOG_FORMAT; falling back to text.",
+                (),
+                None,
+            )
+        )
 
 
 _configure_logging()

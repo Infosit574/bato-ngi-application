@@ -128,10 +128,21 @@ print(json.dumps([
     assert probe.stderr.count(warning) == int(invalid)
 
 
-@pytest.mark.parametrize("value", [None, "text", "json", "xml", "JSON", ""])
-def test_log_format_uses_startup_configuration(value):
+@pytest.mark.parametrize(
+    "value,level",
+    [
+        (None, "INFO"),
+        ("text", "INFO"),
+        ("json", "INFO"),
+        ("xml", "INFO"),
+        ("JSON", "INFO"),
+        ("", "INFO"),
+        ("xml", "ERROR"),
+    ],
+)
+def test_log_format_uses_startup_configuration(value, level):
     environment = os.environ.copy()
-    environment.pop("BATO_LOG_LEVEL", None)
+    environment["BATO_LOG_LEVEL"] = level
     environment.pop("BATO_LOG_FORMAT", None)
     if value is not None:
         environment["BATO_LOG_FORMAT"] = value
@@ -150,6 +161,10 @@ config = uvicorn.Config("bato.api.app:app")
 config.load()
 os.environ["BATO_LOG_FORMAT"] = "text" if os.environ.get("BATO_LOG_FORMAT") == "json" else "json"
 importlib.import_module("bato.api.app")
+assert all(
+    logging.getLogger(name).getEffectiveLevel() == getattr(logging, os.environ["BATO_LOG_LEVEL"])
+    for name in ("", "bato.api.app", "uvicorn", "uvicorn.error", "uvicorn.access", "uvicorn.asgi")
+)
 for name in ("bato.api.app", "uvicorn", "uvicorn.error", "uvicorn.asgi"):
     logging.getLogger(name).info("startup probe")
 logging.getLogger("uvicorn.access").info(
@@ -179,12 +194,14 @@ logging.getLogger("uvicorn.access").info(
         ]
     else:
         invalid = value not in {None, "text"}
-        assert lines == [
-            *([f"WARNING:bato.api.app:{warning}"] if invalid else []),
-            "INFO:bato.api.app:startup probe",
-            *(["INFO:     startup probe"] * 3),
-            f"INFO:     {access_message} OK",
-        ]
+        expected_lines = [f"WARNING:bato.api.app:{warning}"] if invalid else []
+        if level != "ERROR":
+            expected_lines += [
+                "INFO:bato.api.app:startup probe",
+                *(["INFO:     startup probe"] * 3),
+                f"INFO:     {access_message} OK",
+            ]
+        assert lines == expected_lines
 
 
 @pytest.mark.parametrize("switches", [None, *itertools.product(("true", "false"), repeat=3)])
