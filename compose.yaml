@@ -20,6 +20,7 @@ services:
     environment:
       BATO_DATABASE_URL: postgresql://bato:bato-development-only@db:5432/bato
       BATO_LOG_LEVEL: "${BATO_LOG_LEVEL-INFO}"
+      BATO_LOG_FORMAT: "${BATO_LOG_FORMAT-text}"
       BATO_MCP_NEXTCLOUD_ENABLED: "${BATO_MCP_NEXTCLOUD_ENABLED-true}"
       BATO_MCP_ROCKETCHAT_ENABLED: "${BATO_MCP_ROCKETCHAT_ENABLED-true}"
       BATO_MCP_EMAIL_ENABLED: "${BATO_MCP_EMAIL_ENABLED-true}"

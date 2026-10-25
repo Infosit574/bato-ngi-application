@@ -128,6 +128,65 @@ print(json.dumps([
     assert probe.stderr.count(warning) == int(invalid)
 
 
+@pytest.mark.parametrize("value", [None, "text", "json", "xml", "JSON", ""])
+def test_log_format_uses_startup_configuration(value):
+    environment = os.environ.copy()
+    environment.pop("BATO_LOG_LEVEL", None)
+    environment.pop("BATO_LOG_FORMAT", None)
+    if value is not None:
+        environment["BATO_LOG_FORMAT"] = value
+    probe = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            """
+import importlib
+import logging
+import os
+import uvicorn
+
+logging.basicConfig(level=logging.ERROR)
+config = uvicorn.Config("bato.api.app:app")
+config.load()
+os.environ["BATO_LOG_FORMAT"] = "text" if os.environ.get("BATO_LOG_FORMAT") == "json" else "json"
+importlib.import_module("bato.api.app")
+for name in ("bato.api.app", "uvicorn", "uvicorn.error", "uvicorn.asgi"):
+    logging.getLogger(name).info("startup probe")
+logging.getLogger("uvicorn.access").info(
+    '%s - "%s %s HTTP/%s" %d', "127.0.0.1:1234", "GET", "/health/live", "1.1", 200
+)
+""",
+        ],
+        env=environment,
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
+    lines = (probe.stderr + probe.stdout).splitlines()
+    access_message = '127.0.0.1:1234 - "GET /health/live HTTP/1.1" 200'
+    warning = "Invalid BATO_LOG_FORMAT; falling back to text."
+    if value == "json":
+        assert [json.loads(line) for line in lines] == [
+            {"level": "INFO", "logger": name, "message": message}
+            for name, message in [
+                ("bato.api.app", "startup probe"),
+                ("uvicorn", "startup probe"),
+                ("uvicorn.error", "startup probe"),
+                ("uvicorn.asgi", "startup probe"),
+                ("uvicorn.access", access_message),
+            ]
+        ]
+    else:
+        invalid = value not in {None, "text"}
+        assert lines == [
+            *([f"WARNING:bato.api.app:{warning}"] if invalid else []),
+            "INFO:bato.api.app:startup probe",
+            *(["INFO:     startup probe"] * 3),
+            f"INFO:     {access_message} OK",
+        ]
+
+
 @pytest.mark.parametrize("switches", [None, *itertools.product(("true", "false"), repeat=3)])
 def test_extension_status_uses_startup_configuration(switches):
     environment = os.environ.copy()

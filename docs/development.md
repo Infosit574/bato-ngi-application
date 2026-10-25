@@ -34,9 +34,13 @@ values, standalone client configuration, and container recreation requirements.
 `BATO_LOG_LEVEL` sets the API process log level at startup, including Uvicorn
 error and access logs. Accepted values are `DEBUG`, `INFO`, `WARNING`, and `ERROR`
 (uppercase). The default is `INFO`; invalid values fall back to `INFO` with a warning.
-Set it in `.env` or the shell before deployment, then recreate the API container
+`BATO_LOG_FORMAT` selects `text` or `json` (lowercase) for application and Uvicorn
+log lines at startup. The default is `text`; invalid values fall back to `text`
+with a warning. JSON lines contain `level`, `logger`, and `message`; exception
+tracebacks are included in the message with escaped newlines.
+Set these in `.env` or the shell before deployment, then recreate the API container
 with `docker compose up -d --force-recreate api`. For local Python execution, set
-it in the process environment before starting the API; later changes have no effect.
+them in the process environment before starting the API; later changes have no effect.
 For local Python execution, `BATO_DATABASE_URL` is a libpq-compatible connection
 string supplied by the operator; no application-side default is assumed.
 
