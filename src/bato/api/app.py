@@ -1,3 +1,4 @@
+import logging
 import os
 
 import psycopg
@@ -6,6 +7,21 @@ from fastapi.responses import JSONResponse
 
 from bato.core.capabilities import DEFERRED_CAPABILITIES
 from bato.mcp.registry import CONNECTORS, ENABLED_CONNECTORS
+
+
+def _configure_logging() -> None:
+    level = os.environ.get("BATO_LOG_LEVEL", "INFO")
+    invalid = level not in {"DEBUG", "INFO", "WARNING", "ERROR"}
+    if invalid:
+        level = "INFO"
+    logging.basicConfig(level=level)
+    for name in ("", "uvicorn", "uvicorn.error", "uvicorn.access", "uvicorn.asgi"):
+        logging.getLogger(name).setLevel(level)
+    if invalid:
+        logging.getLogger(__name__).warning("Invalid BATO_LOG_LEVEL; falling back to INFO.")
+
+
+_configure_logging()
 
 app = FastAPI(
     title="BATO skeleton",
