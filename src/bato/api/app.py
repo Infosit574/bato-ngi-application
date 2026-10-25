@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 
@@ -9,16 +10,50 @@ from bato.core.capabilities import DEFERRED_CAPABILITIES
 from bato.mcp.registry import CONNECTORS, ENABLED_CONNECTORS
 
 
+class _JsonFormatter(logging.Formatter):
+    def format(self, record: logging.LogRecord) -> str:
+        return json.dumps(
+            {
+                "level": record.levelname,
+                "logger": record.name,
+                "message": super().format(record),
+            }
+        )
+
+
 def _configure_logging() -> None:
     level = os.environ.get("BATO_LOG_LEVEL", "INFO")
     invalid = level not in {"DEBUG", "INFO", "WARNING", "ERROR"}
     if invalid:
         level = "INFO"
+    log_format = os.environ.get("BATO_LOG_FORMAT", "text")
+    invalid_format = log_format not in {"text", "json"}
+    if invalid_format:
+        log_format = "text"
     logging.basicConfig(level=level)
+    formatter = _JsonFormatter() if log_format == "json" else None
     for name in ("", "uvicorn", "uvicorn.error", "uvicorn.access", "uvicorn.asgi"):
-        logging.getLogger(name).setLevel(level)
+        logger = logging.getLogger(name)
+        logger.setLevel(level)
+        if formatter is not None:
+            for handler in logger.handlers:
+                handler.setFormatter(formatter)
     if invalid:
         logging.getLogger(__name__).warning("Invalid BATO_LOG_LEVEL; falling back to INFO.")
+    if invalid_format:
+        logger = logging.getLogger(__name__)
+        # Configuration warnings must remain visible even when runtime logs require ERROR.
+        logger.handle(
+            logger.makeRecord(
+                __name__,
+                logging.WARNING,
+                __file__,
+                0,
+                "Invalid BATO_LOG_FORMAT; falling back to text.",
+                (),
+                None,
+            )
+        )
 
 
 _configure_logging()
