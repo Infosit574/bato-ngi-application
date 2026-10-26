@@ -1,0 +1,11 @@
+CREATE EXTENSION IF NOT EXISTS vector;
+DO $$
+BEGIN
+  EXECUTE format('CREATE ROLE bato_api LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE PASSWORD %L',
+                 rtrim(pg_read_file('/run/bato/api-password'), E'\n'));
+END
+$$;
+REVOKE ALL ON DATABASE bato FROM PUBLIC;
+GRANT CONNECT ON DATABASE bato TO bato_api;
+REVOKE CREATE ON SCHEMA public FROM PUBLIC;
+GRANT USAGE ON SCHEMA public TO bato_api;

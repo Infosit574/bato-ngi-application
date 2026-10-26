@@ -1,0 +1,9 @@
+[Unit]
+Description=BATO archive and committed heartbeat check
+After=bato-node.service
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /usr/local/lib/bato/node.py monitor
+StandardOutput=null
+StandardError=journal
+LimitCORE=0

@@ -1,0 +1,10 @@
+[Unit]
+Description=Independent state physical backup
+Requires=bato-state.service
+After=bato-state.service
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /usr/local/lib/bato/bootstrap/state.py backup
+StandardOutput=null
+StandardError=journal
+LimitCORE=0

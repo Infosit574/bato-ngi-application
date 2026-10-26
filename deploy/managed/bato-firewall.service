@@ -1,0 +1,9 @@
+[Unit]
+Description=Restricted BATO host firewall
+Before=bato-node.service
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /usr/local/lib/bato/node.py firewall
+RemainAfterExit=yes
+[Install]
+WantedBy=multi-user.target

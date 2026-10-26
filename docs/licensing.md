@@ -9,13 +9,14 @@ This documentation is CC BY-SA 4.0.
   **AGPL-3.0-or-later**, under the unchanged grant in `license.txt`. The complete
   AGPL v3 text is in `LICENSES/AGPL-3.0-or-later.txt`; the filename does not alter
   the grant's option to use later versions.
-- README and `docs/` documentation are **CC BY-SA 4.0**; the complete text is in
+- README, `docs/` and `infra/runbooks/` documentation are **CC BY-SA 4.0**; the complete text is in
   `LICENSES/CC-BY-SA-4.0.txt`. Original Infosit attribution and historical
   application/AI-assistance notices are retained.
 - Third-party software and license texts keep their own licenses. They are not
   relicensed as BATO software or documentation. LGPL v3 and its incorporated GPL
   v3 text are included for the PostgreSQL driver. No model weights, datasets,
-  proprietary service code, or noncommercial/source-available components are added.
+  proprietary service code, or noncommercial/source-available components are added
+  to application images.
 
 ## Review and reproduction
 
@@ -109,3 +110,19 @@ Retain `/usr/share/doc/*/copyright`, Python's license files, and package notices
 Debian GPL/LGPL programs in these images remain independent system components.
 Recheck package licenses and source obligations when changing the pinned images;
 this inventory is not a vulnerability audit or a license for external services.
+
+## Managed infrastructure tools
+
+Managed deployment recipes retain the BATO AGPL-3.0-or-later grant; upstream
+tools remain separate, unmodified aggregates under their own terms:
+
+- Traefik 3.7.16 and bundled lego 5.5.2: MIT.
+- pgBackRest 2.60.0: MIT; preserve its packaged notices and dependencies.
+- SOPS: MPL-2.0; age: BSD-3-Clause; OpenSSH: its upstream BSD-style notices.
+- Terraform 1.13.5: BUSL-1.1, a source-available operator tool, **not an
+  open-source BATO dependency or relicensed AGPL software**.
+- Terraform hcloud 1.70.2 and AWS 6.70.0 providers: MPL-2.0.
+
+Retain image/package notices, source links and upstream licence obligations when
+redistributing tools. No Terraform binary/provider is shipped in the BATO API
+image. Its use does not change the application's or this repository's grants.

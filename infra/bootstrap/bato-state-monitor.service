@@ -1,0 +1,9 @@
+[Unit]
+Description=State archive and committed heartbeat checks
+After=bato-state.service
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /usr/local/lib/bato/bootstrap/state.py monitor
+StandardOutput=null
+StandardError=journal
+LimitCORE=0

@@ -1,0 +1,49 @@
+name: Infrastructure
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      reviewed_sha:
+        description: Full approved SHA; dispatch the workflow at this same protected ref
+        required: true
+        type: string
+      root:
+        type: choice
+        options: [node, retained]
+        required: true
+      environment:
+        type: choice
+        options: [dev, prod]
+        required: true
+permissions:
+  contents: read
+jobs:
+  offline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd
+        with:
+          terraform_version: 1.13.5
+          terraform_wrapper: false
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e
+        with:
+          version: "0.11.4"
+          python-version: "3.12"
+      - run: bash infra/ci/offline.sh
+  trusted-plan:
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      github.sha == inputs.reviewed_sha && github.ref_protected
+    environment: managed-plan-${{ inputs.environment }}
+    runs-on: [self-hosted, linux, x64, bato-de-ephemeral]
+    timeout-minutes: 30
+    steps:
+      - name: Run preinstalled approved plan wrapper
+        env:
+          REVIEWED_SHA: ${{ inputs.reviewed_sha }}
+          PLAN_ROOT: ${{ inputs.root }}
+          PLAN_ENVIRONMENT: ${{ inputs.environment }}
+        run: /usr/local/sbin/bato-approved-plan "$REVIEWED_SHA" "$PLAN_ROOT" "$PLAN_ENVIRONMENT"

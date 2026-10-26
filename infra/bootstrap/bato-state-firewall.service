@@ -1,0 +1,9 @@
+[Unit]
+Description=Private independent state host firewall
+Before=bato-state.service
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /usr/local/lib/bato/bootstrap/state.py firewall
+RemainAfterExit=yes
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,11 @@
+[Unit]
+Description=BATO physical backup
+Requires=bato-node.service
+After=bato-node.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /usr/local/lib/bato/node.py backup
+StandardOutput=null
+StandardError=journal
+LimitCORE=0

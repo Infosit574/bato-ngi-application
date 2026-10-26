@@ -1,0 +1,18 @@
+[Unit]
+Description=Independent encrypted BATO state service
+Requires=docker.service bato-state-firewall.service
+After=docker.service network-online.target bato-state-firewall.service
+RequiresMountsFor=/srv/bato-state
+BindsTo=srv-bato\x2dstate.mount
+After=srv-bato\x2dstate.mount
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStartPre=/usr/bin/python3 /usr/local/lib/bato/bootstrap/state.py gate
+ExecStart=/usr/bin/python3 /usr/local/lib/bato/bootstrap/state.py start
+ExecStop=/usr/bin/python3 /usr/local/lib/bato/bootstrap/state.py stop
+LimitCORE=0
+StandardOutput=null
+StandardError=journal
+[Install]
+WantedBy=multi-user.target

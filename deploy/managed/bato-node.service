@@ -1,0 +1,23 @@
+[Unit]
+Description=Restricted managed BATO node
+Requires=docker.service bato-firewall.service
+After=docker.service network-online.target bato-firewall.service
+Wants=network-online.target
+BindsTo=srv-bato-postgres.mount
+After=srv-bato-postgres.mount
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/bato/current
+ExecStartPre=/usr/bin/python3 /usr/local/lib/bato/node.py gate
+ExecStart=/usr/bin/python3 /usr/local/lib/bato/node.py start
+ExecStop=/usr/bin/python3 /usr/local/lib/bato/node.py stop
+TimeoutStartSec=300
+TimeoutStopSec=120
+LimitCORE=0
+StandardOutput=null
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
