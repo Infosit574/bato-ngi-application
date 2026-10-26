@@ -1,6 +1,7 @@
 """Physical recovery proof. Copyright (C) 2026 Infosit d.o.o.; AGPL-3.0-or-later."""
 
 import json
+import os
 import secrets
 import subprocess
 import time
@@ -15,6 +16,77 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def docker(*args: str, data: bytes | None = None) -> bytes:
     return subprocess.check_output(["docker", *args], input=data)
+
+
+def test_managed_bind_mounts_refuse_missing_host_paths(tmp_path: Path) -> None:
+    configuration = json.loads(
+        subprocess.check_output(
+            [
+                "docker",
+                "compose",
+                "-f",
+                "compose.yaml",
+                "-f",
+                "deploy/managed/compose.yaml",
+                "config",
+                "--format",
+                "json",
+            ],
+            cwd=ROOT,
+            env=dict(os.environ, BATO_SOURCE_COMMIT="1" * 40),
+        )
+    )
+    mounts = [
+        mount
+        for service in configuration["services"].values()
+        for mount in service.get("volumes", [])
+        if mount["type"] == "bind"
+        and mount["source"].startswith(("/srv/bato/", "/etc/bato/", "/var/lib/bato/"))
+    ]
+    assert mounts
+    image = (ROOT / "deploy/managed/postgres.Dockerfile").read_text().splitlines()[0].split()[1]
+    project = f"bato-bind-{uuid.uuid4().hex[:12]}"
+    probe = tmp_path / "compose.json"
+    for index, mount in enumerate(mounts):
+        missing = f"/tmp/{project}-{index}"
+        probe.write_text(
+            json.dumps(
+                {
+                    "services": {
+                        "probe": {
+                            "image": image,
+                            "network_mode": "none",
+                            "volumes": [mount | {"source": missing}],
+                        }
+                    }
+                }
+            )
+        )
+        result = subprocess.run(
+            [
+                "docker",
+                "compose",
+                "-p",
+                project,
+                "-f",
+                str(probe),
+                "run",
+                "--rm",
+                "--no-deps",
+                "--pull",
+                "never",
+                "-T",
+                "--entrypoint",
+                "/bin/true",
+                "probe",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        assert result.returncode != 0, mount
+        assert "bind source path does not exist" in result.stderr, result.stderr
+        assert missing in result.stderr, result.stderr
 
 
 def test_file_credentials_encrypted_physical_pitr(tmp_path: Path) -> None:

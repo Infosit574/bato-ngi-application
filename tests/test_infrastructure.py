@@ -246,7 +246,7 @@ def test_managed_compose_has_no_development_secret_or_restart_bypass() -> None:
     assert services["api"]["ports"][0]["host_ip"] == "127.0.0.1"
     assert not services["db"].get("ports")
     assert all(
-        v["bind"]["create_host_path"] is False
+        v["bind"].get("create_host_path", False) is False
         for v in services["db"]["volumes"]
         if v["source"].startswith(("/srv/", "/etc/"))
     )
