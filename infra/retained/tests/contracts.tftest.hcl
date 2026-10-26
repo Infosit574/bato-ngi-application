@@ -37,3 +37,19 @@ run "shared_retention_identity" {
   }
   expect_failures = [var.retention_principal]
 }
+run "shared_planning_identity" {
+  command = plan
+  variables {
+    node_principal = "arn:aws:iam:::user/p123456:SAMEKEY"
+    plan_principal = "arn:aws:iam:::user/p123456:SAMEKEY"
+  }
+  expect_failures = [var.plan_principal]
+}
+run "owner_project_planning_identity" {
+  command = plan
+  variables {
+    owner_principal = "arn:aws:iam:::user/p123458:OWNEREXAMPLE"
+    plan_principal  = "arn:aws:iam:::user/p123458:PLANEXAMPLE"
+  }
+  expect_failures = [var.plan_principal]
+}

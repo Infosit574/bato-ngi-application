@@ -5,6 +5,18 @@ variable "tenant" {
     error_message = "Use a lowercase tenant slug."
   }
 }
+variable "plan_principal" {
+  description = "Independent metadata-only planning key ARN from a separate credentials project."
+  type        = string
+  validation {
+    condition = alltrue([
+      can(regex("^arn:aws:iam:::user/p[0-9]+:[A-Za-z0-9]+$", var.plan_principal)),
+      !contains([var.node_principal, var.retention_principal, var.owner_principal], var.plan_principal),
+      try(split(":", var.plan_principal)[5] != split(":", var.owner_principal)[5], false)
+    ])
+    error_message = "Use a distinct read-only planning key outside the bucket owner's project, never a node, retention, or owner key."
+  }
+}
 variable "environment" {
   type = string
   validation {

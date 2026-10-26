@@ -12,7 +12,7 @@ done
 uv sync --locked
 uv run ruff format --check .
 uv run ruff check .
-uv run pytest tests/test_infrastructure.py
+uv run pytest tests/test_infrastructure.py infra/tests/test_provider_contracts.py
 for script in infra/scripts/*.sh infra/ci/*.sh; do
     bash -n "$script"
     docker run --rm -i koalaman/shellcheck:v0.11.0@sha256:61862eba1fcf09a484ebcc6feea46f1782532571a34ed51fedf90dd25f925a8d \

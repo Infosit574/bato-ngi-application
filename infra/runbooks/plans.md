@@ -33,7 +33,7 @@ The configuration includes:
   SHA; do not automatically create it from job input.
 - `recipients.txt`: offline age recipients, no private decryption identities.
 - `dev/provider-backend.env` and prod equivalent: private exported provider
-  read-only token, S3 plan-owner/read-policy credential, password-free TLS
+  read-only token, independent S3 planning credential, password-free TLS
   `PG_CONN_STR`, mode-0400 `PGPASSFILE` and `BATO_TENANT`.
 - `dev/node.tfvars`, `dev/retained.tfvars` and prod equivalents: public-resource
   inputs privately scoped to that tenant/project/database, with no node bundles.
@@ -46,6 +46,16 @@ existing schema/state reads and advisory lock access. Bootstrap schemas and tabl
 operator-side first; do not permit CI init to create databases or change state.
 The hcloud provider needs the selected project token; credentials from another
 tenant/project must not be available to the job.
+
+Set the retained root's `plan_principal` to that planning key's public ARN.
+Use a separate credentials project and a key distinct from node, retention and
+offline owner keys. The bucket policy exempts it from the unnamed-key deny and
+allows only the metadata reads used by AWS provider 6.70.0, including policy,
+ACL, CORS, versioning, lifecycle and object-lock configuration refresh.
+HeadBucket requires `ListBucket`, so the key can list this bucket's object names;
+it cannot read object contents. Explicit denies block object reads, writes,
+deletion and policy/ACL changes even if project defaults grant them.
+No node, retention or owner credential belongs on the runner.
 
 Mount private no-swap tmpfs at `/run/bato-plan` and EU encrypted storage at
 `/mnt/bato-plan-eu` (0700). Verify destinations/backups stay in the approved EU

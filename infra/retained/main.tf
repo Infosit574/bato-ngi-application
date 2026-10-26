@@ -28,7 +28,7 @@ resource "aws_s3_bucket_policy" "backup" {
       {
         Sid          = "OnlyNamedKeys"
         Effect       = "Deny"
-        NotPrincipal = { AWS = [var.node_principal, var.retention_principal, var.owner_principal] }
+        NotPrincipal = { AWS = [var.node_principal, var.retention_principal, var.owner_principal, var.plan_principal] }
         Action       = "s3:*"
         Resource     = [local.bucket_arn, "${local.bucket_arn}/*"]
       },
@@ -74,6 +74,30 @@ resource "aws_s3_bucket_policy" "backup" {
         Principal = { AWS = var.retention_principal }
         Action    = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject", "s3:AbortMultipartUpload", "s3:ListMultipartUploadParts"]
         Resource  = "${local.bucket_arn}/${local.repo_path}/*"
+      },
+      {
+        Sid       = "ReadOnlyPlans"
+        Effect    = "Allow"
+        Principal = { AWS = var.plan_principal }
+        Action = [
+          "s3:ListBucket", "s3:GetBucketLocation", "s3:GetBucketPolicy", "s3:GetBucketAcl",
+          "s3:GetBucketCORS", "s3:GetBucketWebsite", "s3:GetBucketVersioning",
+          "s3:GetAccelerateConfiguration", "s3:GetBucketRequestPayment", "s3:GetBucketLogging",
+          "s3:GetLifecycleConfiguration", "s3:GetReplicationConfiguration",
+          "s3:GetEncryptionConfiguration", "s3:GetBucketObjectLockConfiguration", "s3:GetBucketTagging"
+        ]
+        Resource = local.bucket_arn
+      },
+      {
+        Sid       = "PlansCannotReadDataOrMutate"
+        Effect    = "Deny"
+        Principal = { AWS = var.plan_principal }
+        Action = [
+          "s3:GetObject*", "s3:Put*", "s3:Delete*", "s3:CreateBucket",
+          "s3:AbortMultipartUpload", "s3:RestoreObject", "s3:Replicate*",
+          "s3:BypassGovernanceRetention"
+        ]
+        Resource = [local.bucket_arn, "${local.bucket_arn}/*"]
       }
     ]
   })

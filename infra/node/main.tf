@@ -64,8 +64,14 @@ resource "hcloud_server" "node" {
   depends_on = [hcloud_network_subnet.node]
   lifecycle {
     precondition {
-      condition     = data.hcloud_volume.postgres.name == var.volume_name && data.hcloud_volume.postgres.labels["tenant"] == var.tenant && data.hcloud_volume.postgres.labels["environment"] == var.environment && data.hcloud_volume.postgres.delete_protection
-      error_message = "Retained disk name/location does not match this node."
+      condition = alltrue([
+        data.hcloud_volume.postgres.name == var.volume_name,
+        data.hcloud_volume.postgres.location == var.location,
+        lookup(data.hcloud_volume.postgres.labels, "tenant", null) == var.tenant,
+        lookup(data.hcloud_volume.postgres.labels, "environment", null) == var.environment,
+        data.hcloud_volume.postgres.delete_protection
+      ])
+      error_message = "Retained disk identity, location, or protection does not match this node."
     }
   }
 }

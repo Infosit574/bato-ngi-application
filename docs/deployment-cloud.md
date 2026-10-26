@@ -5,6 +5,8 @@ Software/configuration: AGPL-3.0-or-later.
 
 This implements the explicitly approved [ADR-0002](adr/ADR-0002-restricted-managed-node.md)
 and records implementation in [ADR-0003](adr/ADR-0003-managed-node-implementation.md).
+Read-only planning identity isolation is recorded in
+[ADR-0004](adr/ADR-0004-managed-plan-identity.md).
 It deploys the **unauthenticated health/status skeleton only**. Even `prod` must
 remain allowlisted and contain no sensitive application data. It adds no
 application authentication, inference, UI, MCP integration or release publishing.

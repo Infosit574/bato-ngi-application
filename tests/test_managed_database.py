@@ -262,6 +262,11 @@ def test_file_credentials_encrypted_physical_pitr(tmp_path: Path) -> None:
             "-p 5433 -c archive_mode=off",
             "start",
         )
+        deadline = time.monotonic() + 30
+        while sql("SELECT pg_is_in_recovery()", "5433") != "f":
+            if time.monotonic() >= deadline:
+                pytest.fail("Restored database did not promote within 30 seconds")
+            time.sleep(0.1)
         assert (
             sql("SELECT string_agg(value, ',' ORDER BY value) FROM restore_marker", "5433")
             == "base,retained"
