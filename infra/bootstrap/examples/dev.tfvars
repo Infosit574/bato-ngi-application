@@ -1,0 +1,12 @@
+service_name        = "example-state-dev"
+state_hostname      = "state.dev.example.org"
+location            = "fsn1"
+image_id            = 123456
+ssh_public_key      = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA documentation-only"
+admin_cidrs         = ["192.0.2.0/28", "2001:db8:1::/64"]
+network_cidr        = "192.0.2.0/24"
+backup_location     = "nbg1"
+bucket_name         = "example-state-dev-documentation"
+state_principal     = "arn:aws:iam:::user/p323456:STATEEXAMPLE"
+retention_principal = "arn:aws:iam:::user/p323457:RETENTIONEXAMPLE"
+owner_principal     = "arn:aws:iam:::user/p323458:OWNEREXAMPLE"
