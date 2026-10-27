@@ -1,0 +1,109 @@
+services:
+  db:
+    image: bato-postgres:${BATO_SOURCE_COMMIT:?approved SHA required}
+    build:
+      context: .
+      dockerfile: deploy/managed/postgres.Dockerfile
+    restart: "no"
+    environment: !override
+      POSTGRES_DB: bato
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD_FILE: /run/bato/db-password
+      PGDATA: /var/lib/postgresql/data/pgdata
+    command:
+      - postgres
+      - -c
+      - listen_addresses=*
+      - -c
+      - wal_level=replica
+      - -c
+      - archive_mode=on
+      - -c
+      - archive_timeout=300s
+      - -c
+      - archive_command=pgbackrest --stanza=bato archive-push %p
+      - -c
+      - password_encryption=scram-sha-256
+    volumes: !override
+      - type: bind
+        source: /srv/bato/postgres
+        target: /var/lib/postgresql/data
+        bind:
+          create_host_path: false
+      - type: bind
+        source: /etc/bato/secrets/current/db-password
+        target: /run/bato/db-password
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: /etc/bato/secrets/current/api-password
+        target: /run/bato/api-password
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: /etc/bato/secrets/current/pgbackrest.conf
+        target: /etc/pgbackrest/pgbackrest.conf
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./deploy/managed/initdb.sql
+        target: /docker-entrypoint-initdb.d/001-managed.sql
+        read_only: true
+      - type: bind
+        source: ./deploy/managed/rotate-credentials.sql
+        target: /run/bato/rotate-credentials.sql
+        read_only: true
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d bato"]
+  api:
+    image: bato-api:${BATO_SOURCE_COMMIT:?approved SHA required}
+    restart: "no"
+    environment: !override
+      BATO_DATABASE_URL: postgresql://bato_api@db:5432/bato
+      PGPASSFILE: /run/bato/pgpass
+      BATO_LOG_LEVEL: INFO
+      BATO_LOG_FORMAT: json
+    ports: !override
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - type: bind
+        source: /etc/bato/secrets/current/api-pgpass
+        target: /run/bato/pgpass
+        read_only: true
+        bind:
+          create_host_path: false
+  proxy:
+    image: traefik:v3.7.16@sha256:1336e85aaed293bd63d005086e0dd013b04078b26aaeb1c18b26a2f928af7e65
+    network_mode: host
+    restart: "no"
+    read_only: true
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    security_opt: [no-new-privileges:true]
+    environment:
+      HETZNER_API_TOKEN_FILE: /run/bato/dns-token
+    command: ["--configFile=/etc/traefik/traefik.json"]
+    volumes:
+      - type: bind
+        source: /etc/bato/proxy
+        target: /etc/traefik
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: /var/lib/bato/acme
+        target: /acme
+        bind:
+          create_host_path: false
+      - type: bind
+        source: /etc/bato/secrets/current/dns-token
+        target: /run/bato/dns-token
+        read_only: true
+        bind:
+          create_host_path: false
+    logging:
+      driver: local
+      options: {max-size: "10m", max-file: "3"}

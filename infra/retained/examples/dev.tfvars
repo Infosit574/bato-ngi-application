@@ -1,0 +1,10 @@
+tenant              = "example"
+environment         = "dev"
+location            = "fsn1"
+backup_location     = "nbg1"
+volume_size         = 20
+bucket_name         = "example-dev-backup-documentation"
+node_principal      = "arn:aws:iam:::user/p123456:NODEEXAMPLE"
+retention_principal = "arn:aws:iam:::user/p123457:RETENTIONEXAMPLE"
+owner_principal     = "arn:aws:iam:::user/p123458:OWNEREXAMPLE"
+plan_principal      = "arn:aws:iam:::user/p123459:PLANEXAMPLE"

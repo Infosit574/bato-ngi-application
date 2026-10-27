@@ -36,6 +36,8 @@ defaults. This is not a production deployment.**
 
 See [deployment and development](docs/development.md) for persistence, diagnostics,
 checks, optional settings, and [MCP stubs](docs/mcp-stubs.md) for client commands.
+The separate [restricted managed-node runbook](docs/deployment-cloud.md) covers
+operator-authorized German cloud infrastructure; it does not change local defaults.
 
 ## Overview
 BATO is an open-source cognitive AI architecture designed to empower small communities (up to 150 members) and SMEs to achieve digital sovereignty. The longer-term intent is offline-first operation, European multilingual models, and privacy-aware orchestration of external services. These are design goals, not capabilities delivered by this skeleton.

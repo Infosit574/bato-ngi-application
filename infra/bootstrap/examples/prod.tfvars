@@ -1,0 +1,12 @@
+service_name        = "example-state-prod"
+state_hostname      = "state.prod.example.org"
+location            = "nbg1"
+image_id            = 123456
+ssh_public_key      = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA documentation-only"
+admin_cidrs         = ["203.0.113.0/28", "2001:db8:3::/64"]
+network_cidr        = "203.0.113.0/24"
+backup_location     = "fsn1"
+bucket_name         = "example-state-prod-documentation"
+state_principal     = "arn:aws:iam:::user/p423456:STATEEXAMPLE"
+retention_principal = "arn:aws:iam:::user/p423457:RETENTIONEXAMPLE"
+owner_principal     = "arn:aws:iam:::user/p423458:OWNEREXAMPLE"
