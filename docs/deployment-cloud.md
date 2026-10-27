@@ -12,6 +12,21 @@ remain allowlisted and contain no sensitive application data. It adds no
 application authentication, inference, UI, MCP integration or release publishing.
 No cloud apply or real ACME issuance forms part of repository verification.
 
+## Prerequisites
+
+To run `bash infra/ci/offline.sh`, install Terraform and uv and provide a running
+Docker Engine with the Compose plugin. CI uses these versions:
+
+- Terraform **1.13.5**, pinned in `.terraform-version` and
+  `.github/workflows/infrastructure.yml`.
+- uv **0.11.4**, pinned in `.github/workflows/infrastructure.yml`.
+- ShellCheck **0.11.0** and actionlint **1.7.7**, run as digest-pinned Docker
+  images by `infra/ci/offline.sh`; native installations are not required.
+- Docker Compose is supplied by the `ubuntu-latest` runner, **not explicitly
+  pinned by the workflow**. The verified runner image `20261012.334.1` includes
+  Compose **2.38.2** ([image manifest](https://github.com/actions/runner-images/blob/ubuntu24/20261012.334/images/ubuntu/Ubuntu2404-Readme.md));
+  this runner-provided version can change.
+
 ## Layout and prerequisites
 
 - `infra/bootstrap`: independently protected German state VM, LUKS data disk,
